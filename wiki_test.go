@@ -22,13 +22,24 @@ func TestSaveLoad(t *testing.T) {
     t.Logf("Page body: %v", string(p2.Body))
 }
 
+func TestSaveFail(t *testing.T) {
+    p1 := &Page{Title: "Bad/Page/Name", Body: []byte("Subdirs don't exist")}
+    err := p1.save()
+    if err == nil {
+        t.Errorf("Successfully saved bogus page?!")
+    }
+    _, err = loadPage("Bad/Page/Name")
+    if err == nil {
+        t.Errorf("Successfully loaded bogus page?!")
+    }
+}
+
 func TestHandler(t *testing.T) {
     response := httptest.NewRecorder()
     request, _ := http.NewRequest("GET", "http://domain.com/just/a/test", nil)
     handler(response, request)
-    msg := response.Body.String()
-    if msg != "message: just/a/test" {
-        t.Errorf("Wrong response: %s", msg)
+    if response.Code != http.StatusFound {
+        t.Errorf("Wrong status code: %d", response.Code)
     }
 }
 
@@ -51,18 +62,27 @@ func TestMissingViewHandler(t *testing.T) {
     response := httptest.NewRecorder()
     request, _ := http.NewRequest("GET", "http://domain.com/view/TestMissingWikiPage", nil)
     viewHandler(response, request)
-    if response.Code != 302 {
+    if response.Code != http.StatusFound {
         t.Errorf("Wrong status code: %d", response.Code)
+    }
+}
+
+func TestMissingWikiTemplate(t *testing.T) {
+    response := httptest.NewRecorder()
+    page := &Page{Title: "Whatever", Body: []byte("whatever")}
+    renderPage(page, response, "no_such_template.html")
+    body := response.Body.String()
+    if !strings.Contains(body, "open no_such_template.html: no such file or directory") {
+        t.Errorf("Wrong response body: %s", body)
     }
 }
 
 func TestBadWikiTemplate(t *testing.T) {
     response := httptest.NewRecorder()
-    page := &Page{Title: "Bogus", Body: []byte("meaningless")}
-    renderPage(page, response, "bogus.html")
-    body := response.Body.String()
-    if !strings.Contains(body, "Error: open bogus.html: no such file or directory") {
-        t.Errorf("Wrong response body: %s", body)
+    page := &Page{Title: "Whatever", Body: []byte("whatever")}
+    renderPage(page, response, "bad_template.html")
+    if response.Code != http.StatusInternalServerError {
+        t.Errorf("Wrong status code: %d, body:\n%v", response.Code, response.Body.String())
     }
 }
 
@@ -96,15 +116,9 @@ func TestSaveHandler(t *testing.T) {
     defer os.Remove("TestNewPage.txt")
     response := httptest.NewRecorder()
     content := "New page content"
-    form := url.Values{}
-    form.Set("body", content)
-    request, _ := http.NewRequest("POST", "http://domain.com/save/TestNewPage", strings.NewReader(form.Encode()))
-    // Can't parse the form data if these two aren't set
-    request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-    request.Header.Add("Content-Length", fmt.Sprintf("%d", len(form.Encode())))
-    t.Logf("TestSaveHandler request body: %q", request.FormValue("body"))
+    request := newPostRequest("http://domain.com/save/TestNewPage", content)
     saveHandler(response, request)
-    if response.Code != 302 {
+    if response.Code != http.StatusFound {
         t.Errorf("Wrong status code: %d", response.Code)
     }
     page, err := loadPage("TestNewPage")
@@ -114,4 +128,23 @@ func TestSaveHandler(t *testing.T) {
     if string(page.Body) != content {
         t.Errorf("Wrong response body: %s", page.Body)
     }
+}
+
+func TestSaveHandlerBadTitle(t *testing.T) {
+    response := httptest.NewRecorder()
+    request := newPostRequest("http://domain.com/save/Bad/Page/Name", "filler")
+    saveHandler(response, request)
+    if response.Code != http.StatusInternalServerError {
+        t.Errorf("Wrong status code: %d", response.Code)
+    }
+}
+
+func newPostRequest(reqUrl string, content string) *http.Request {
+    form := url.Values{}
+    form.Set("body", content)
+    request, _ := http.NewRequest("POST", reqUrl, strings.NewReader(form.Encode()))
+    // Can't parse the form data if these two aren't set
+    request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+    request.Header.Add("Content-Length", fmt.Sprintf("%d", len(form.Encode())))
+    return request
 }

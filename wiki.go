@@ -1,7 +1,7 @@
 package main
 
 import (
-    "fmt"
+    "bytes"
     "net/http"
     "io/ioutil"
     "html/template"
@@ -43,7 +43,7 @@ const editPrefix = len("/edit/")
 const savePrefix = len("/save/")
 
 func handler(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintf(w, "message: %s", r.URL.Path[1:])  // trim leading '/'
+    http.Redirect(w, r, "/view/FrontPage", http.StatusFound)
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request) {
@@ -68,23 +68,28 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 func saveHandler(w http.ResponseWriter, r *http.Request) {
     title := r.URL.Path[savePrefix:]  // trim leading '/save/'
     body := r.FormValue("body")
-    fmt.Printf("saveHandler body: %q\n", body)
+    // fmt.Printf("saveHandler body: %q\n", body)
     page := &Page{Title: title, Body: []byte(body)}
     err := page.save()
     if err != nil {
-        w.WriteHeader(500)
-        fmt.Fprintf(w, "Error: %s", err)
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+    } else {
+        http.Redirect(w, r, "/view/"+title, http.StatusFound)
     }
-    http.Redirect(w, r, "/view/"+title, http.StatusFound)
 }
 
 func renderPage(p *Page, w http.ResponseWriter, tFile string) {
     t, err := template.ParseFiles(tFile)
     if err != nil {
-        w.WriteHeader(500)
-        fmt.Fprintf(w, "Error: %s", err)
+        http.Error(w, err.Error(), http.StatusInternalServerError)
     } else {
-        t.Execute(w, p)
+        var out bytes.Buffer
+        err = t.Execute(&out, p)
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+        } else {
+            w.Write(out.Bytes())
+        }
     }
 }
 
