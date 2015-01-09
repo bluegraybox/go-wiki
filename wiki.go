@@ -4,6 +4,7 @@ import (
     "fmt"
     "net/http"
     "io/ioutil"
+    "html/template"
 )
 
 
@@ -48,7 +49,17 @@ func wikiHandler(w http.ResponseWriter, r *http.Request) {
         w.WriteHeader(404)
         fmt.Fprintf(w, "Error: %s", err)
     } else {
-        fmt.Fprintf(w, "<h1>%s</h1><p>%s</p>", page.Title, page.Body)
+        renderPage(page, w, "view.html")
+    }
+}
+
+func renderPage(p *Page, w http.ResponseWriter, tFile string) {
+    t, err := template.ParseFiles(tFile)
+    if err != nil {
+        w.WriteHeader(500)
+        fmt.Fprintf(w, "Error: %s", err)
+    } else {
+        t.Execute(w, p)
     }
 }
 
