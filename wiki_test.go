@@ -53,7 +53,7 @@ func TestViewHandler(t *testing.T) {
     viewHandler(response, request)
     body := response.Body.String()
     if !(strings.Contains(body, "<h1>TestWikiPage</h1>") &&
-            strings.Contains(body, "<p>This is a sample wiki page</p>")) {
+            strings.Contains(body, ">This is a sample wiki page<")) {
         t.Errorf("Wrong response body: %s", body)
     }
 }
@@ -70,7 +70,7 @@ func TestMissingViewHandler(t *testing.T) {
 func TestMissingWikiTemplate(t *testing.T) {
     response := httptest.NewRecorder()
     page := &Page{Title: "Whatever", Body: []byte("whatever")}
-    renderPage(page, response, "no_such_template.html")
+    renderHtml(page, response, "no_such_template.html")
     body := response.Body.String()
     if !strings.Contains(body, "open no_such_template.html: no such file or directory") {
         t.Errorf("Wrong response body: %s", body)
@@ -80,7 +80,7 @@ func TestMissingWikiTemplate(t *testing.T) {
 func TestBadWikiTemplate(t *testing.T) {
     response := httptest.NewRecorder()
     page := &Page{Title: "Whatever", Body: []byte("whatever")}
-    renderPage(page, response, "bad_template.html")
+    renderHtml(page, response, "bad_template.html")
     if response.Code != http.StatusInternalServerError {
         t.Errorf("Wrong status code: %d, body:\n%v", response.Code, response.Body.String())
     }
