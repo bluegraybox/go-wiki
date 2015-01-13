@@ -14,7 +14,7 @@ import (
 func TestSaveLoad(t *testing.T) {
     p1 := &Page{Title: "TestPage", Body: []byte("This is a sample page")}
     p1.save()
-    defer os.Remove("TestPage.txt")
+    defer os.Remove("pages/TestPage.txt")
     p2, err := loadPage("TestPage")
     if err != nil {
         t.Errorf("Error loading page: %v", err)
@@ -46,7 +46,7 @@ func TestHandler(t *testing.T) {
 func TestViewHandler(t *testing.T) {
     p1 := &Page{Title: "TestWikiPage", Body: []byte("This is a sample wiki page")}
     p1.save()
-    defer os.Remove("TestWikiPage.txt")
+    defer os.Remove("pages/TestWikiPage.txt")
 
     response := httptest.NewRecorder()
     request, _ := http.NewRequest("GET", "http://domain.com/view/TestWikiPage", nil)
@@ -89,7 +89,7 @@ func TestBadWikiTemplate(t *testing.T) {
 func TestEditHandler(t *testing.T) {
     p1 := &Page{Title: "TestEditPage", Body: []byte("This is a sample wiki page to edit")}
     p1.save()
-    defer os.Remove("TestEditPage.txt")
+    defer os.Remove("pages/TestEditPage.txt")
 
     response := httptest.NewRecorder()
     request, _ := http.NewRequest("GET", "http://domain.com/edit/TestEditPage", nil)
@@ -102,6 +102,7 @@ func TestEditHandler(t *testing.T) {
 }
 
 func TestNewPageHandler(t *testing.T) {
+    defer os.Remove("pages/TestNewPage.txt")
     response := httptest.NewRecorder()
     request, _ := http.NewRequest("GET", "http://domain.com/view/TestNewPage", nil)
     editHandler(response, request)
@@ -113,7 +114,7 @@ func TestNewPageHandler(t *testing.T) {
 }
 
 func TestSaveHandler(t *testing.T) {
-    defer os.Remove("TestNewPage.txt")
+    defer os.Remove("pages/TestNewPage.txt")
     response := httptest.NewRecorder()
     content := "New page content"
     request := newPostRequest("http://domain.com/save/TestNewPage", content)

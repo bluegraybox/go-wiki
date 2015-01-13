@@ -4,7 +4,9 @@ import (
     "bytes"
     "net/http"
     "io/ioutil"
+    "fmt"
     "io"
+    "os"
     ht "html/template"
     tt "text/template"
     "github.com/shurcooL/go/github_flavored_markdown"
@@ -23,6 +25,7 @@ type Page struct {
 }
 
 func (p *Page) save() error {
+    initPagesDir()
     filename := pageFile(p.Title)
     return ioutil.WriteFile(filename, p.Body, 0600)
 }
@@ -35,8 +38,18 @@ func loadPage(title string) (*Page, error) {
     return &Page{Title: title, Body: body}, nil
 }
 
+const pagesDir = "pages"
+
+func initPagesDir() {
+    err := os.MkdirAll(pagesDir, 0700)
+    if err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
+}
+
 func pageFile(title string) string {
-    return title + ".txt"
+    return pagesDir + "/" + title + ".txt"
 }
 
 /******************************************************************************/
@@ -128,6 +141,7 @@ func renderPage(p *Page, w http.ResponseWriter, tFile string, parser templatePar
 }
 
 func main() {
+    initPagesDir()
     http.HandleFunc("/view/", viewHandler)
     http.HandleFunc("/edit/", editHandler)
     http.HandleFunc("/save/", saveHandler)
