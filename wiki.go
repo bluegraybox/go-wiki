@@ -87,38 +87,43 @@ type tmpl interface {
     Execute(out io.Writer, data interface{}) error
 }
 
+type renderer func([]byte) []byte
+type templateParser func(string) (tmpl, error)
+
 func renderHtml(p *Page, w http.ResponseWriter, tFile string) {
-    t, err := ht.ParseFiles(tFile)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-    } else {
-        renderPage(p, w, t)
-    }
+    // htmlParser := ht.ParseFiles  // this doesn't work
+    htmlParser := func (f string) (t tmpl, e error) { return ht.ParseFiles(f) }
+    noopRenderer := func (body []byte) []byte { return body }
+    renderPage(p, w, tFile, htmlParser, noopRenderer)
 }
 
 func renderMarkdown(p *Page, w http.ResponseWriter, tFile string) {
-    t, err := tt.ParseFiles(tFile)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-    } else {
+    textParser := func (f string) (t tmpl, e error) { return tt.ParseFiles(f) }
+    markdownRenderer := func (body []byte) []byte {
         var rendered bytes.Buffer
-        rendered.Write(github_flavored_markdown.Markdown(p.Body))
+        rendered.Write(github_flavored_markdown.Markdown(body))
         // html := bluemonday.UGCPolicy().SanitizeBytes(p.Body)
         // rendered.Write(blackfriday.MarkdownCommon(html))
-        p.Body = rendered.Bytes()
-        renderPage(p, w, t)
+        return rendered.Bytes()
     }
+    renderPage(p, w, tFile, textParser, markdownRenderer)
 }
 
-func renderPage(p *Page, w http.ResponseWriter, t tmpl) {
-    // if we t.Execute directly to w, then http.Error doesn't set the status code,
-    // and the template up to the point of failure will still be in the output body
-    var out bytes.Buffer
-    err := t.Execute(&out, p)
+func renderPage(p *Page, w http.ResponseWriter, tFile string, parser templateParser, renderFunc renderer) {
+    t, err := parser(tFile)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
     } else {
-        w.Write(out.Bytes())
+        p.Body = renderFunc(p.Body)
+        // if we t.Execute directly to w, then http.Error doesn't set the status code,
+        // and the template up to the point of failure will still be in the output body
+        var out bytes.Buffer
+        err := t.Execute(&out, p)
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+        } else {
+            w.Write(out.Bytes())
+        }
     }
 }
 
