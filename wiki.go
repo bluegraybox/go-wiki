@@ -41,7 +41,7 @@ func loadPage(title string) (*Page, error) {
 	return &Page{Title: title, Body: body}, nil
 }
 
-const pagesDir = "pages"
+const pagesDir = "/var/local/wiki"
 
 func initPagesDir() {
 	err := os.MkdirAll(pagesDir, 0700)
