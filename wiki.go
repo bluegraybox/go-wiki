@@ -149,5 +149,5 @@ func main() {
 	http.HandleFunc("/edit/", editHandler)
 	http.HandleFunc("/save/", saveHandler)
 	http.HandleFunc("/", handler)
-	http.ListenAndServeTLS(":8443", "server.crt", "server.key", nil)
+	http.ListenAndServe(":80", nil)
 }

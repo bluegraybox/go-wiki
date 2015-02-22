@@ -24,3 +24,14 @@ rm tmp.key
 openssl req -new -key server.key -out server.csr
 openssl x509 -req -days 3650 -in server.csr -signkey server.key -out server.crt
 ```
+
+## Docker config for AWS Elastic Beanstalk
+Elastic Beanstalk has nginx proxying to Docker, and it handles HTTPS.
+```
+cp Dockerrun.aws.json.example Dockerrun.aws.json
+```
+Set the image name.
+```
+zip -r ebconfig.zip Dockerrun.aws.json .ebextensions
+```
+Upload `ebconfig.zip` as your Elastic Beanstalk config.

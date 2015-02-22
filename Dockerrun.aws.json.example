@@ -6,7 +6,7 @@
   },
   "Ports": [
     {
-      "ContainerPort": "443"
+      "ContainerPort": "80"
     }
   ],
   "Volumes": [
@@ -14,6 +14,5 @@
       "HostDirectory": "/var/local/wiki",
       "ContainerDirectory": "/var/local/wiki"
     }
-  ],
-  "Logging": "/var/log/wiki"
+  ]
 }

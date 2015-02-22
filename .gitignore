@@ -6,3 +6,5 @@ server.crt
 server.csr
 server.key
 Dockerrun.aws.json
+.ebextensions/ssl.config
+ebconfig.zip
