@@ -7,11 +7,17 @@
   -->
   <link href="https://raw.githubusercontent.com/sindresorhus/github-markdown-css/gh-pages/github-markdown.css" media="all" rel="stylesheet" type="text/css" />
   <link href="http://cdnjs.cloudflare.com/ajax/libs/octicons/2.1.2/octicons.css" media="all" rel="stylesheet" type="text/css" />
+	<style type="text/css">
+	.nav { display: inline-block; margin-right: 20px; font-family: helvetica, sans-serif; margin-bottom: 5px; }
+	div.nav, div.nav a { color: #ccc; }
+	hr.top { margin-top: 0px; }
+	</style>
 </head>
 <body>
-  <p>[<a href="/">Home</a>]</p>
-  <h1>{{.Title}}</h1>
-  <p>[<a href="/edit/{{.Title}}">edit</a>]</p>
+  <div class="nav">[<a href="/">Home</a>]</div>
+  <h1 class="nav">{{.Title}}</h1>
+  <div class="nav">[<a href="/edit/{{.Title}}">edit</a>]</div>
+	<hr class="top">
   <article class="markdown-body entry-content" style="padding: 30px;">
   {{printf "%s" .Body}}
   </article>
