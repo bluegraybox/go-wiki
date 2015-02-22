@@ -5,7 +5,9 @@ RUN mkdir -p /var/local/wiki
 ADD wiki /
 ADD view.html /
 ADD edit.html /
+ADD server.crt /
+ADD server.key /
 
 ENTRYPOINT /wiki
 
-EXPOSE 80
+EXPOSE 443
