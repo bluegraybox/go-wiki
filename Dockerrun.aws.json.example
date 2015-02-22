@@ -1,0 +1,19 @@
+{
+  "AWSEBDockerrunVersion": "1",
+  "Image": {
+    "Name": "bluegraybox/gowiki",
+    "Update": "true"
+  },
+  "Ports": [
+    {
+      "ContainerPort": "80"
+    }
+  ],
+  "Volumes": [
+    {
+      "HostDirectory": "/var/local/wiki",
+      "ContainerDirectory": "/var/local/wiki"
+    }
+  ],
+  "Logging": "/var/log/wiki"
+}

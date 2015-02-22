@@ -2,3 +2,7 @@
 .commit
 /pages
 wiki
+server.crt
+server.csr
+server.key
+Dockerrun.aws.json
