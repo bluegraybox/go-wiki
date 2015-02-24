@@ -6,13 +6,17 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/shurcooL/go/github_flavored_markdown"
 	ht "html/template"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
+	"strings"
 	tt "text/template"
 	// "github.com/microcosm-cc/bluemonday"
 	// "github.com/russross/blackfriday"
@@ -63,7 +67,79 @@ const viewPrefix = len("/view/")
 const editPrefix = len("/edit/")
 const savePrefix = len("/save/")
 
-func handler(w http.ResponseWriter, r *http.Request) {
+type handler func(http.ResponseWriter, *http.Request)
+
+func setAuthRespHeader(w http.ResponseWriter) {
+	w.Header().Add("WWW-Authenticate", `Basic realm="wiki"`)
+}
+
+func setBadHeaderResponse(w http.ResponseWriter) {
+	setAuthRespHeader(w)
+	http.Error(w, "Authorization header should be \"Basic username:password\"", http.StatusUnauthorized)
+}
+
+func makeSecWrap(c *config) func(handler) handler {
+	validate := func(username, password string) bool {
+		if username == c.Username && password == c.Password {
+			return true
+		}
+		return false
+	}
+	return func(f handler) handler {
+		return func(w http.ResponseWriter, r *http.Request) {
+			// Core logic from http://bl.ocks.org/tristanwietsma/8444cf3cb5a1ac496203
+			authHdr := r.Header.Get("Authorization")
+			auth := strings.SplitN(authHdr, " ", 2)
+			if len(auth) != 2 {
+				setBadHeaderResponse(w)
+				return
+			}
+			if auth[0] != "Basic" {
+				setBadHeaderResponse(w)
+				return
+			}
+
+			userPwd, err := base64.StdEncoding.DecodeString(auth[1])
+			if err != nil {
+				setAuthRespHeader(w)
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+				return
+			}
+
+			pair := strings.SplitN(string(userPwd), ":", 2)
+			if len(pair) != 2 {
+				setBadHeaderResponse(w)
+				return
+			}
+
+			if !validate(pair[0], pair[1]) {
+				setAuthRespHeader(w)
+				http.Error(w, "Username/password validation failed", http.StatusUnauthorized)
+				return
+			}
+
+			f(w, r)
+		}
+	}
+}
+
+type config struct {
+	Username string
+	Password string
+}
+
+func loadConfig() *config {
+	// We want this to be fragile
+	body, err := ioutil.ReadFile("config.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	c := &config{}
+	json.Unmarshal(body, c)
+	return c
+}
+
+func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/view/FrontPage", http.StatusFound)
 }
 
@@ -145,9 +221,11 @@ func renderPage(p *Page, w http.ResponseWriter, tFile string, parser templatePar
 
 func main() {
 	initPagesDir()
-	http.HandleFunc("/view/", viewHandler)
-	http.HandleFunc("/edit/", editHandler)
-	http.HandleFunc("/save/", saveHandler)
-	http.HandleFunc("/", handler)
-	http.ListenAndServe(":80", nil)
+	c := loadConfig()
+	secWrap := makeSecWrap(c)
+	http.HandleFunc("/view/", secWrap(viewHandler))
+	http.HandleFunc("/edit/", secWrap(editHandler))
+	http.HandleFunc("/save/", secWrap(saveHandler))
+	http.HandleFunc("/", secWrap(defaultHandler))
+	http.ListenAndServe(":8888", nil)
 }

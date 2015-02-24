@@ -8,3 +8,4 @@ server.key
 Dockerrun.aws.json
 .ebextensions/ssl.config
 ebconfig.zip
+config.json
