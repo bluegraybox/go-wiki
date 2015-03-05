@@ -175,6 +175,38 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func allHandler(w http.ResponseWriter, r *http.Request) {
+	files, err := ioutil.ReadDir(pagesDir)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	t, err := ht.ParseFiles("all.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else {
+		var out bytes.Buffer
+		baseNames := make([]string, len(files))
+		for i, f := range files {
+			baseNames[i] = baseName(f)
+		}
+		err := t.Execute(&out, baseNames)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			w.Write(out.Bytes())
+		}
+	}
+}
+
+func baseName(info os.FileInfo) string {
+	l := len(info.Name())
+	if info.Name()[l-4:] == ".txt" {
+		return info.Name()[0:l-4]
+	}
+	return info.Name()
+}
+
 type tmpl interface {
 	Execute(out io.Writer, data interface{}) error
 }
@@ -226,6 +258,7 @@ func main() {
 	http.HandleFunc("/view/", secWrap(viewHandler))
 	http.HandleFunc("/edit/", secWrap(editHandler))
 	http.HandleFunc("/save/", secWrap(saveHandler))
+	http.HandleFunc("/all/", secWrap(allHandler))
 	http.HandleFunc("/", secWrap(defaultHandler))
 	http.ListenAndServe(":8888", nil)
 }
