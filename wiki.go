@@ -260,5 +260,5 @@ func main() {
 	http.HandleFunc("/save/", secWrap(saveHandler))
 	http.HandleFunc("/all/", secWrap(allHandler))
 	http.HandleFunc("/", secWrap(defaultHandler))
-	http.ListenAndServe(":8888", nil)
+	http.ListenAndServe(":80", nil)
 }
