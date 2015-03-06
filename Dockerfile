@@ -7,6 +7,8 @@ ADD view.html /
 ADD edit.html /
 ADD all.html /
 ADD config.json /
+ADD github-markdown.css /
+ADD octicons.css /
 
 ENTRYPOINT /wiki
 
