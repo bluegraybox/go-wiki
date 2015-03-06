@@ -2,13 +2,29 @@
 
 Copied, with minor revisions, from Go's [Writing Web Applications](https://golang.org/doc/articles/wiki/) page.
 
-**WARNING:** This is *totally* insecure: no HTTPS, no authentication, no revision history, nothing.
+**WARNING:** The application itself is not secure:
+* It uses a hardcoded username and password in config.json, and passes them in the clear over HTTP
+* Unlike most wikis, it does not keep revision history.
+* The Docker configuration files set up nginx to use HTTPS with a self-signed cert, and proxy to the wiki. In this way, you get a reasonably secure combination of username/password auth over HTTPS.
 
 ## To Do
 * Switch to HTTPS (self-signed cert)
 * Add authentication (Read from wiki page - Config.txt?)
 * Add git commit (and push) on save?
 * Store files somewhere that can persist in AWS
+
+## Cross-compiling
+Docker containers are 64-bit Linux systems. If you're developing on a Mac, you'll need to cross-compile the binary.
+
+To set up Go to allow cross-compiling, you'll need to do this once:
+```
+cd /usr/local/go/src/
+sudo GOOS=linux GOARCH=amd64 ./make.bash --no-clean
+```
+Then in your wiki project directory:
+```
+GOOS=linux GOARCH=amd64 go build
+```
 
 ## Running in Docker
 ```
