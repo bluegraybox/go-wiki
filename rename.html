@@ -11,11 +11,10 @@
 </head>
 <body>
   <div class="nav">[<a href="/">Home</a>]</div>
-  <h1 class="nav">Editing {{.Title}}</h1>
-  <div class="nav">[<a href="/rename/{{.Title}}">rename</a>]</div>
+  <h1 class="nav">Renaming {{.Title}}</h1>
 	<hr>
-  <form action="/save/{{.Title}}" method="POST">
-    <div><textarea name="body" rows="20" cols="80">{{printf "%s" .Body}}</textarea></div>
+  <form action="/rename/{{.Title}}" method="POST">
+    <div><input type="text"  name="newName" value="{{.Title}}"></div>
     <div><input type="submit" value="Save"></div>
   </form>
 </body>

@@ -16,6 +16,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	tt "text/template"
 	// "github.com/microcosm-cc/bluemonday"
@@ -66,6 +67,7 @@ func pageFile(title string) string {
 const viewPrefix = len("/view/")
 const editPrefix = len("/edit/")
 const savePrefix = len("/save/")
+const renamePrefix = len("/rename/")
 
 type handler func(http.ResponseWriter, *http.Request)
 
@@ -175,6 +177,68 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func renameHandler(w http.ResponseWriter, r *http.Request) {
+	title := r.URL.Path[renamePrefix:] // trim leading '/rename/'
+	if r.Method == "GET" {
+		page := &Page{Title: title}
+		renderHtml(page, w, "rename.html")
+	} else if r.Method == "POST" {
+		newName := r.FormValue("newName")
+		oldFilename := pageFile(title)
+		newFilename := pageFile(newName)
+		if _, err := os.Stat(oldFilename); os.IsNotExist(err) {
+			// If the old file doesn't exist, we still want to rewrite the links,
+			// and redirect to the edit page for the new name.
+			err = rewriteLinks(title, newName)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				http.Redirect(w, r, "/edit/"+newName, http.StatusFound)
+			}
+		} else {
+			err := os.Rename(oldFilename, newFilename)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				err = rewriteLinks(title, newName)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				} else {
+					http.Redirect(w, r, "/view/"+newName, http.StatusFound)
+				}
+			}
+		}
+	} else {
+		http.Error(w, fmt.Sprintf("Invalid Method '%s'", r.Method), http.StatusMethodNotAllowed)
+	}
+}
+
+func rewriteLinks(title, newName string) error {
+	newFilename := pageFile(newName)
+	files, err := ioutil.ReadDir(pagesDir)
+	if err != nil {
+		return err
+	} else {
+		renameRegex := regexp.MustCompile(`(\[[^\]]*\])\(` + title + `\)`)
+		for _, f := range files {
+			filename := pagesDir + "/" + f.Name()
+			if filename != newFilename {
+				content, err := ioutil.ReadFile(filename)
+				if err != nil {
+					return err
+				} else {
+					newContent := renameRegex.ReplaceAll(content, []byte("$1("+newName+")"))
+					err = ioutil.WriteFile(filename, newContent, 0644)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func allHandler(w http.ResponseWriter, r *http.Request) {
 	files, err := ioutil.ReadDir(pagesDir)
 	if err != nil {
@@ -202,7 +266,7 @@ func allHandler(w http.ResponseWriter, r *http.Request) {
 func baseName(info os.FileInfo) string {
 	l := len(info.Name())
 	if info.Name()[l-4:] == ".txt" {
-		return info.Name()[0:l-4]
+		return info.Name()[0 : l-4]
 	}
 	return info.Name()
 }
@@ -259,6 +323,7 @@ func main() {
 	http.HandleFunc("/view/", secWrap(viewHandler))
 	http.HandleFunc("/edit/", secWrap(editHandler))
 	http.HandleFunc("/save/", secWrap(saveHandler))
+	http.HandleFunc("/rename/", secWrap(renameHandler))
 	http.HandleFunc("/all/", secWrap(allHandler))
 	http.HandleFunc("/", secWrap(defaultHandler))
 	err := http.ListenAndServe(":80", nil)

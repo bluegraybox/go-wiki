@@ -5,6 +5,7 @@ RUN mkdir -p /var/local/wiki
 ADD wiki /
 ADD view.html /
 ADD edit.html /
+ADD rename.html /
 ADD all.html /
 ADD config.json /
 ADD static/github-markdown.css /static/
