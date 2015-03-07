@@ -13,11 +13,15 @@ files:
     owner: root
     group: root
     content: |
+      # HTTP redirect to HTTPS
+      server {
+        listen         80;
+        return         301 https://$host$request_uri;
+      }
+
       # HTTPS Server
-      
       server {
         listen 443;
-        server_name localhost;
         
         ssl on;
         ssl_certificate /etc/pki/tls/certs/server.crt;
