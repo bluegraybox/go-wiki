@@ -55,6 +55,7 @@ openssl x509 -req -days 3650 -in server.csr -signkey server.key -out server.crt
 
 ### Docker config for AWS Elastic Beanstalk
 Elastic Beanstalk has nginx proxying to Docker, and it handles HTTPS.
+More info [here](http://docs.aws.amazon.com/elasticbeanstalk/latest/dg/SSLDocker.SingleInstance.html) and [here](http://docs.aws.amazon.com/elasticbeanstalk/latest/dg/create_deploy_docker_console.html).
 ```
 cp Dockerrun.aws.json.example Dockerrun.aws.json
 ```
@@ -62,6 +63,6 @@ Set the image name.
 
 Copy `.ebextensions/ssl.config.example` to `.ebextensions/ssl.config`. Edit it and copy your cert and key blocks into it.
 ```
-zip -r ebconfig.zip Dockerrun.aws.json .ebextensions
+zip -r ebconfig.zip Dockerrun.aws.json .ebextensions/ssl.config
 ```
 Upload `ebconfig.zip` as your Elastic Beanstalk config.
