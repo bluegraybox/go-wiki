@@ -255,10 +255,14 @@ func main() {
 	initPagesDir()
 	c := loadConfig()
 	secWrap := makeSecWrap(c)
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	http.HandleFunc("/view/", secWrap(viewHandler))
 	http.HandleFunc("/edit/", secWrap(editHandler))
 	http.HandleFunc("/save/", secWrap(saveHandler))
 	http.HandleFunc("/all/", secWrap(allHandler))
 	http.HandleFunc("/", secWrap(defaultHandler))
-	http.ListenAndServe(":80", nil)
+	err := http.ListenAndServe(":80", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
