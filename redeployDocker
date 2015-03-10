@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Stop and remove any Docker container named $DOCKERHUB_ID/gowiki running locally, delete its image, re-build and restart it.
+
+if [ -z "$DOCKERHUB_ID" ] ; then
+	echo "Error: Environment variable DOCKERHUB_ID not defined!"
+	echo "    Run 'export DOCKERHUB_ID=<your dockerhub id>' before running this script."
+	exit 1
+fi
+
+did=$(docker ps -a | grep "$DOCKERHUB_ID/gowiki" | cut -c 1-12)
+if [ -n "$did" ] ; then
+    echo "Stopping and removing $DOCKERHUB_ID/gowiki container"
+	docker stop $did
+    docker rm $did
+fi
+
+iid=$(docker images | grep "$DOCKERHUB_ID/gowiki" | cut -c 42-53)
+if [ -n "$iid" ] ; then
+    echo "Removing $DOCKERHUB_ID/gowiki image"
+	docker rmi $iid
+fi
+
+echo "Rebuilding gowiki binary for linux/amd64"
+GOOS=linux GOARCH=amd64 go build
+echo "Rebuilding Docker image for $DOCKERHUB_ID/gowiki"
+docker build -t $DOCKERHUB_ID/gowiki .
+echo "Restarting Docker container for $DOCKERHUB_ID/gowiki"
+docker run -d -p 80:80 $DOCKERHUB_ID/gowiki
+
+echo '--------------------------------------------------------------------------------'
+docker ps -a
+echo '--------------------------------------------------------------------------------'
+docker images
