@@ -20,11 +20,11 @@ Copied, with minor revisions, from Go's [Writing Web Applications](https://golan
 * Add git commit (and push) on save? Would need cert auth to git server...
 
 ## Running in Docker
-
-[Instructions to set up Docker on a Mac](http://docs.docker.com/installation/mac/).
+Get Docker installed and running locally ([instructions for OS X](http://docs.docker.com/installation/mac/)).
+You should probably work through the tutorial to get familiar with it.
 
 ### Cross-compiling
-Docker containers are 64-bit Linux systems. If you're developing on a Mac, you'll need to cross-compile the binary.
+Docker containers are (generally) 64-bit Linux systems. If you're developing on a Mac, you'll need to cross-compile the binary.
 
 To set up Go to allow cross-compiling, you'll need to do this once:
 ```
@@ -33,7 +33,7 @@ sudo GOOS=linux GOARCH=amd64 ./make.bash --no-clean
 ```
 
 ### Building & Running Docker
-**Warning: these instructions are incomplete.**
+_The_ `redeployDocker` _script should do all of this for you_.
 
 In your wiki project directory:
 ```
@@ -42,6 +42,17 @@ docker build -t <yourDockerHubId>/gowiki .
 docker run -d -p 80:80 <yourDockerHubId>/gowiki
 ```
 (This builds a Docker image based on the configuration in `Dockerfile`.)
+
+NOTE: If you've built and run a gowiki image before, you'll probably want to stop and remove the old container, and delete the old image.
+
+## Deploying to Elastic Beanstalk
+**Warning: These directions are incomplete and kinda sucky.**
+
+Elastic Beanstalk is an AWS service, so you You will need to have an AWS account set up.
+
+More surprisingly, you will also have to have set up a Dockerhub account.
+EB doesn't let you push a Docker image directly to it from your machine;
+you have to specify a Dockerhub respository for it to pull from.
 
 ### Generating a self-signed certificiate
 Needed for ElasticBeanstalk nginx config.
@@ -65,4 +76,14 @@ Copy `.ebextensions/ssl.config.example` to `.ebextensions/ssl.config`. Edit it a
 ```
 zip -r ebconfig.zip Dockerrun.aws.json .ebextensions/ssl.config
 ```
-Upload `ebconfig.zip` as your Elastic Beanstalk config.
+
+### Deploying Docker image to AWS Elastic Beanstalk
+Once you've built and tested your Docker image locally, you can push it to Dockerhub with
+```
+docker push <yourDockerHubId>/gowiki
+```
+
+Create an Elastic Beanstalk instance if you haven't already. (The details of that are a little out of scope for this explanation.)
+
+At some point, you'll be prompted to upload a configuration file. This is the `ebconfig.zip` file you just created.
+The name you give it will have to be unique. It doesn't need to be a formal release number, but it will help if it's descriptive (in case you're fiddling around with config settings).
