@@ -87,3 +87,5 @@ Create an Elastic Beanstalk instance if you haven't already. (The details of tha
 
 At some point, you'll be prompted to upload a configuration file. This is the `ebconfig.zip` file you just created.
 The name you give it will have to be unique. It doesn't need to be a formal release number, but it will help if it's descriptive (in case you're fiddling around with config settings).
+
+You will need to set the user and password for the wiki as Elastic Beanstalk environment variables. In the dashboard for your app, click on Configuration then the little gear next to the Software Configuration box. Add environment properties named 'username' and 'password'.

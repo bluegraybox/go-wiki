@@ -7,7 +7,6 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"github.com/shurcooL/go/github_flavored_markdown"
 	ht "html/template"
@@ -131,14 +130,7 @@ type config struct {
 }
 
 func loadConfig() *config {
-	// We want this to be fragile
-	body, err := ioutil.ReadFile("config.json")
-	if err != nil {
-		log.Fatal(err)
-	}
-	c := &config{}
-	json.Unmarshal(body, c)
-	return c
+	return &config{os.Getenv("username"), os.Getenv("password")}
 }
 
 func defaultHandler(w http.ResponseWriter, r *http.Request) {

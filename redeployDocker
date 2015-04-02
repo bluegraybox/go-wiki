@@ -8,6 +8,18 @@ if [ -z "$DOCKERHUB_ID" ] ; then
 	exit 1
 fi
 
+if [ -z "$WIKIUSER" ] ; then
+	echo "Error: Environment variable WIKIUSER not defined!"
+	echo "    Run 'export WIKIUSER=<username>' before running this script."
+	exit 1
+fi
+
+if [ -z "$WIKIPWD" ] ; then
+	echo "Error: Environment variable WIKIPWD not defined!"
+	echo "    Run 'export WIKIPWD=<password>' before running this script."
+	exit 1
+fi
+
 did=$(docker ps -a | grep "$DOCKERHUB_ID/gowiki" | cut -c 1-12)
 if [ -n "$did" ] ; then
     echo "Stopping and removing $DOCKERHUB_ID/gowiki container"
@@ -25,7 +37,7 @@ GOOS=linux GOARCH=amd64 go build
 echo "Rebuilding Docker image for $DOCKERHUB_ID/gowiki"
 docker build -t $DOCKERHUB_ID/gowiki . && \
 echo "Restarting Docker container for $DOCKERHUB_ID/gowiki" && \
-docker run -d -p 80:80 $DOCKERHUB_ID/gowiki
+docker run -d -p 80:80 -e username=$WIKIUSER -e password=$WIKIPWD $DOCKERHUB_ID/gowiki
 
 echo '--------------------------------------------------------------------------------'
 docker ps -a
