@@ -10,11 +10,16 @@ import (
 	"testing"
 )
 
+const TEST_PAGE_DIR = "test_pages"
+
 func TestSaveLoad(t *testing.T) {
+	pIO := pageIO{TEST_PAGE_DIR}
+	pIO.initPagesDir()
+
 	p1 := &Page{Title: "TestPage", Body: []byte("This is a sample page")}
-	p1.save()
-	defer os.Remove("pages/TestPage.txt")
-	p2, err := loadPage("TestPage")
+	pIO.save(p1)
+	defer os.Remove(TEST_PAGE_DIR + "/TestPage.txt")
+	p2, err := pIO.loadPage("TestPage")
 	if err != nil {
 		t.Errorf("Error loading page: %v", err)
 	}
@@ -22,45 +27,57 @@ func TestSaveLoad(t *testing.T) {
 }
 
 func TestSaveFail(t *testing.T) {
+	pIO := pageIO{TEST_PAGE_DIR}
+	pIO.initPagesDir()
+
 	p1 := &Page{Title: "Bad/Page/Name", Body: []byte("Subdirs don't exist")}
-	err := p1.save()
+	err := pIO.save(p1)
 	if err == nil {
 		t.Errorf("Successfully saved bogus page?!")
 	}
-	_, err = loadPage("Bad/Page/Name")
+	_, err = pIO.loadPage("Bad/Page/Name")
 	if err == nil {
 		t.Errorf("Successfully loaded bogus page?!")
 	}
 }
 
-func TestHandler(t *testing.T) {
+func TestDefaultHandler(t *testing.T) {
+	pIO := pageIO{TEST_PAGE_DIR}
+	pIO.initPagesDir()
+
 	response := httptest.NewRecorder()
-	request, _ := http.NewRequest("GET", "http://domain.com/just/a/test", nil)
-	http.DefaultServeMux.ServeHTTP(response, request)
+	request, _ := http.NewRequest("GET", "http://domain.com/totally/invalid/path", nil)
+	defaultHandler(response, request)
 	if response.Code != http.StatusFound {
 		t.Errorf("Wrong status code: %d", response.Code)
 	}
 }
 
 func TestViewHandler(t *testing.T) {
+	pIO := pageIO{TEST_PAGE_DIR}
+	pIO.initPagesDir()
+
 	p1 := &Page{Title: "TestWikiPage", Body: []byte("This is a sample wiki page")}
-	p1.save()
-	defer os.Remove("pages/TestWikiPage.txt")
+	pIO.save(p1)
+	defer os.Remove(TEST_PAGE_DIR + "/TestWikiPage.txt")
 
 	response := httptest.NewRecorder()
 	request, _ := http.NewRequest("GET", "http://domain.com/view/TestWikiPage", nil)
-	viewHandler(response, request)
+	viewHandler(pIO)(response, request)
 	body := response.Body.String()
-	if !(strings.Contains(body, "<h1>TestWikiPage</h1>") &&
+	if !(strings.Contains(body, ">TestWikiPage</h1>") &&
 		strings.Contains(body, ">This is a sample wiki page<")) {
 		t.Errorf("Wrong response body: %s", body)
 	}
 }
 
 func TestMissingViewHandler(t *testing.T) {
+	pIO := pageIO{TEST_PAGE_DIR}
+	pIO.initPagesDir()
+
 	response := httptest.NewRecorder()
 	request, _ := http.NewRequest("GET", "http://domain.com/view/TestMissingWikiPage", nil)
-	viewHandler(response, request)
+	viewHandler(pIO)(response, request)
 	if response.Code != http.StatusFound {
 		t.Errorf("Wrong status code: %d", response.Code)
 	}
@@ -86,42 +103,51 @@ func TestBadWikiTemplate(t *testing.T) {
 }
 
 func TestEditHandler(t *testing.T) {
+	pIO := pageIO{TEST_PAGE_DIR}
+	pIO.initPagesDir()
+
 	p1 := &Page{Title: "TestEditPage", Body: []byte("This is a sample wiki page to edit")}
-	p1.save()
-	defer os.Remove("pages/TestEditPage.txt")
+	pIO.save(p1)
+	defer os.Remove(TEST_PAGE_DIR + "/TestEditPage.txt")
 
 	response := httptest.NewRecorder()
 	request, _ := http.NewRequest("GET", "http://domain.com/edit/TestEditPage", nil)
-	editHandler(response, request)
+	editHandler(pIO)(response, request)
 	body := response.Body.String()
-	if !(strings.Contains(body, "<h1>Editing TestEditPage</h1>") &&
+	if !(strings.Contains(body, ">Editing TestEditPage</h1>") &&
 		strings.Contains(body, ">This is a sample wiki page to edit</textarea>")) {
 		t.Errorf("Wrong response body: %s", body)
 	}
 }
 
 func TestNewPageHandler(t *testing.T) {
-	defer os.Remove("pages/TestNewPage.txt")
+	pIO := pageIO{TEST_PAGE_DIR}
+	pIO.initPagesDir()
+
+	defer os.Remove(TEST_PAGE_DIR + "/TestNewPage.txt")
 	response := httptest.NewRecorder()
 	request, _ := http.NewRequest("GET", "http://domain.com/view/TestNewPage", nil)
-	editHandler(response, request)
+	editHandler(pIO)(response, request)
 	body := response.Body.String()
-	if !(strings.Contains(body, "<h1>Editing TestNewPage</h1>") &&
-		strings.Contains(body, "></textarea>")) {
+	if !(strings.Contains(body, ">Editing TestNewPage</h1>") &&
+		strings.Contains(body, "</textarea>")) {
 		t.Errorf("Wrong response body: %s", body)
 	}
 }
 
 func TestSaveHandler(t *testing.T) {
-	defer os.Remove("pages/TestNewPage.txt")
+	pIO := pageIO{TEST_PAGE_DIR}
+	pIO.initPagesDir()
+
+	defer os.Remove(TEST_PAGE_DIR + "/TestNewPage.txt")
 	response := httptest.NewRecorder()
 	content := "New page content"
 	request := newPostRequest("http://domain.com/save/TestNewPage", content)
-	saveHandler(response, request)
+	saveHandler(pIO)(response, request)
 	if response.Code != http.StatusFound {
 		t.Errorf("Wrong status code: %d", response.Code)
 	}
-	page, err := loadPage("TestNewPage")
+	page, err := pIO.loadPage("TestNewPage")
 	if err != nil {
 		t.Errorf("Error loading page: %s", err)
 	}
@@ -131,9 +157,12 @@ func TestSaveHandler(t *testing.T) {
 }
 
 func TestSaveHandlerBadTitle(t *testing.T) {
+	pIO := pageIO{TEST_PAGE_DIR}
+	pIO.initPagesDir()
+
 	response := httptest.NewRecorder()
 	request := newPostRequest("http://domain.com/save/Bad/Page/Name", "filler")
-	saveHandler(response, request)
+	saveHandler(pIO)(response, request)
 	if response.Code != http.StatusInternalServerError {
 		t.Errorf("Wrong status code: %d", response.Code)
 	}
