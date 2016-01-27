@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
+	"flag"
 	"fmt"
 	"github.com/shurcooL/github_flavored_markdown"
 	ht "html/template"
@@ -26,37 +27,38 @@ import (
 /*                          Page struct and methods                           */
 /******************************************************************************/
 
+type pageIO struct {
+	PagesDir string
+}
+
 type Page struct {
 	Title string
 	Body  []byte
 }
 
-func (p *Page) save() error {
-	initPagesDir()
-	filename := pageFile(p.Title)
+func (pi *pageIO) save(p *Page) error {
+	filename := pi.pageFile(p.Title)
 	return ioutil.WriteFile(filename, p.Body, 0600)
 }
 
-func loadPage(title string) (*Page, error) {
-	body, err := ioutil.ReadFile(pageFile(title))
+func (p *pageIO) loadPage(title string) (*Page, error) {
+	body, err := ioutil.ReadFile(p.pageFile(title))
 	if err != nil {
 		return nil, err
 	}
 	return &Page{Title: title, Body: body}, nil
 }
 
-const pagesDir = "/var/local/wiki"
-
-func initPagesDir() {
-	err := os.MkdirAll(pagesDir, 0700)
+func (p *pageIO) initPagesDir() {
+	err := os.MkdirAll(p.PagesDir, 0700)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 }
 
-func pageFile(title string) string {
-	return pagesDir + "/" + title + ".txt"
+func (p *pageIO) pageFile(title string) string {
+	return p.PagesDir + "/" + title + ".txt"
 }
 
 /******************************************************************************/
@@ -137,83 +139,91 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/view/FrontPage", http.StatusFound)
 }
 
-func viewHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[viewPrefix:] // trim leading '/view/'
-	page, err := loadPage(title)
-	if err != nil {
-		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
-	} else {
-		renderMarkdown(page, w, "view.html")
-	}
-}
-
-func editHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[editPrefix:] // trim leading '/edit/'
-	page, err := loadPage(title)
-	if err != nil {
-		page = &Page{Title: title}
-	}
-	renderHtml(page, w, "edit.html")
-}
-
-func saveHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[savePrefix:] // trim leading '/save/'
-	body := r.FormValue("body")
-	// fmt.Printf("saveHandler body: %q\n", body)
-	page := &Page{Title: title, Body: []byte(body)}
-	err := page.save()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	} else {
-		http.Redirect(w, r, "/view/"+title, http.StatusFound)
-	}
-}
-
-func renameHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[renamePrefix:] // trim leading '/rename/'
-	if r.Method == "GET" {
-		page := &Page{Title: title}
-		renderHtml(page, w, "rename.html")
-	} else if r.Method == "POST" {
-		newName := r.FormValue("newName")
-		oldFilename := pageFile(title)
-		newFilename := pageFile(newName)
-		if _, err := os.Stat(oldFilename); os.IsNotExist(err) {
-			// If the old file doesn't exist, we still want to rewrite the links,
-			// and redirect to the edit page for the new name.
-			err = rewriteLinks(title, newName)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			} else {
-				http.Redirect(w, r, "/edit/"+newName, http.StatusFound)
-			}
+func viewHandler(p pageIO) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		title := r.URL.Path[viewPrefix:] // trim leading '/view/'
+		page, err := p.loadPage(title)
+		if err != nil {
+			http.Redirect(w, r, "/edit/"+title, http.StatusFound)
 		} else {
-			err := os.Rename(oldFilename, newFilename)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			} else {
-				err = rewriteLinks(title, newName)
+			renderMarkdown(page, w, "view.html")
+		}
+	}
+}
+
+func editHandler(p pageIO) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		title := r.URL.Path[editPrefix:] // trim leading '/edit/'
+		page, err := p.loadPage(title)
+		if err != nil {
+			page = &Page{Title: title}
+		}
+		renderHtml(page, w, "edit.html")
+	}
+}
+
+func saveHandler(p pageIO) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		title := r.URL.Path[savePrefix:] // trim leading '/save/'
+		body := r.FormValue("body")
+		// fmt.Printf("saveHandler body: %q\n", body)
+		page := &Page{Title: title, Body: []byte(body)}
+		err := p.save(page)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			http.Redirect(w, r, "/view/"+title, http.StatusFound)
+		}
+	}
+}
+
+func renameHandler(p pageIO) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		title := r.URL.Path[renamePrefix:] // trim leading '/rename/'
+		if r.Method == "GET" {
+			page := &Page{Title: title}
+			renderHtml(page, w, "rename.html")
+		} else if r.Method == "POST" {
+			newName := r.FormValue("newName")
+			oldFilename := p.pageFile(title)
+			newFilename := p.pageFile(newName)
+			if _, err := os.Stat(oldFilename); os.IsNotExist(err) {
+				// If the old file doesn't exist, we still want to rewrite the links,
+				// and redirect to the edit page for the new name.
+				err = p.rewriteLinks(title, newName)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				} else {
-					http.Redirect(w, r, "/view/"+newName, http.StatusFound)
+					http.Redirect(w, r, "/edit/"+newName, http.StatusFound)
+				}
+			} else {
+				err := os.Rename(oldFilename, newFilename)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				} else {
+					err = p.rewriteLinks(title, newName)
+					if err != nil {
+						http.Error(w, err.Error(), http.StatusInternalServerError)
+					} else {
+						http.Redirect(w, r, "/view/"+newName, http.StatusFound)
+					}
 				}
 			}
+		} else {
+			http.Error(w, fmt.Sprintf("Invalid Method '%s'", r.Method), http.StatusMethodNotAllowed)
 		}
-	} else {
-		http.Error(w, fmt.Sprintf("Invalid Method '%s'", r.Method), http.StatusMethodNotAllowed)
 	}
 }
 
-func rewriteLinks(title, newName string) error {
-	newFilename := pageFile(newName)
-	files, err := ioutil.ReadDir(pagesDir)
+func (p pageIO) rewriteLinks(title, newName string) error {
+	newFilename := p.pageFile(newName)
+	files, err := ioutil.ReadDir(p.PagesDir)
 	if err != nil {
 		return err
 	} else {
 		renameRegex := regexp.MustCompile(`(\[[^\]]*\])\(` + title + `\)`)
 		for _, f := range files {
-			filename := pagesDir + "/" + f.Name()
+			filename := p.PagesDir + "/" + f.Name()
 			if filename != newFilename {
 				content, err := ioutil.ReadFile(filename)
 				if err != nil {
@@ -231,26 +241,28 @@ func rewriteLinks(title, newName string) error {
 	return nil
 }
 
-func allHandler(w http.ResponseWriter, r *http.Request) {
-	files, err := ioutil.ReadDir(pagesDir)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-
-	t, err := ht.ParseFiles("all.html")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	} else {
-		var out bytes.Buffer
-		baseNames := make([]string, len(files))
-		for i, f := range files {
-			baseNames[i] = baseName(f)
+func allHandler(p pageIO) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		files, err := ioutil.ReadDir(p.PagesDir)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		err := t.Execute(&out, baseNames)
+
+		t, err := ht.ParseFiles("all.html")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
-			w.Write(out.Bytes())
+			var out bytes.Buffer
+			baseNames := make([]string, len(files))
+			for i, f := range files {
+				baseNames[i] = baseName(f)
+			}
+			err := t.Execute(&out, baseNames)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				w.Write(out.Bytes())
+			}
 		}
 	}
 }
@@ -308,17 +320,24 @@ func renderPage(p *Page, w http.ResponseWriter, tFile string, parser templatePar
 }
 
 func main() {
-	initPagesDir()
+	portPtr := flag.Int("port", 80, "HTTP server port")
+	pagesDirPtr := flag.String("pages", "/var/local/wiki", "Directory to store wiki pages in")
+	flag.Parse()
+	port := fmt.Sprintf(":%d", *portPtr)
+
+	pIO := pageIO{*pagesDirPtr}
+
+	pIO.initPagesDir()
 	c := loadConfig()
 	secWrap := makeSecWrap(c)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-	http.HandleFunc("/view/", secWrap(viewHandler))
-	http.HandleFunc("/edit/", secWrap(editHandler))
-	http.HandleFunc("/save/", secWrap(saveHandler))
-	http.HandleFunc("/rename/", secWrap(renameHandler))
-	http.HandleFunc("/all/", secWrap(allHandler))
+	http.HandleFunc("/view/", secWrap(viewHandler(pIO)))
+	http.HandleFunc("/edit/", secWrap(editHandler(pIO)))
+	http.HandleFunc("/save/", secWrap(saveHandler(pIO)))
+	http.HandleFunc("/rename/", secWrap(renameHandler(pIO)))
+	http.HandleFunc("/all/", secWrap(allHandler(pIO)))
 	http.HandleFunc("/", secWrap(defaultHandler))
-	err := http.ListenAndServe(":80", nil)
+	err := http.ListenAndServe(port, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
