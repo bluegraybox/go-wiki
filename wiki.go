@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"github.com/shurcooL/go/github_flavored_markdown"
+	"github.com/shurcooL/github_flavored_markdown"
 	ht "html/template"
 	"io"
 	"io/ioutil"
