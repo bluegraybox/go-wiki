@@ -1,11 +1,15 @@
+# commit temp files
 .diff
 .commit
-/pages
-wiki
+.coverage.out
+# executable
+go-wiki
+# server credentials
 server.crt
 server.csr
 server.key
+# instance-specific docker configuration
 Dockerrun.aws.json
 .ebextensions/ssl.config
-ebconfig.zip
 config.json
+ebconfig.zip

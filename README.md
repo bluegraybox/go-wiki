@@ -19,6 +19,23 @@ Copied, with minor revisions, from Go's [Writing Web Applications](https://golan
 * page size on mobile; larger bottoms; buttons for edit & home
 * Add git commit (and push) on save? Would need cert auth to git server...
 
+## Build, Test, & Coverage
+```
+go test -coverprofile=.coverage.out && go tool cover -html=.coverage.out
+```
+```
+go build
+```
+
+## Running Locally
+```
+go build && env username=me password=secret ./go-wiki --port 8888 --pages wiki
+```
+or
+```
+env username=me password=secret go run wiki.go --port 8888 --pages wiki
+```
+
 ## Running in Docker
 Get Docker installed and running locally ([instructions for OS X](http://docs.docker.com/installation/mac/)).
 You should probably work through the tutorial to get familiar with it.
