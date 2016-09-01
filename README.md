@@ -37,7 +37,7 @@ env username=me password=secret go run wiki.go --port 8888 --pages wiki
 ```
 
 ## Running in Docker
-Get Docker installed and running locally ([instructions for OS X](http://docs.docker.com/installation/mac/)).
+Get Docker installed and running locally ([instructions for OS X](https://docs.docker.com/docker-for-mac/)).
 You should probably work through the tutorial to get familiar with it.
 
 ### Cross-compiling
