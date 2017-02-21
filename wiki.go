@@ -9,6 +9,9 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/shurcooL/github_flavored_markdown"
 	ht "html/template"
 	"io"
@@ -59,6 +62,35 @@ func (p *pageIO) initPagesDir() {
 
 func (p *pageIO) pageFile(title string) string {
 	return p.PagesDir + "/" + title + ".txt"
+}
+
+func initS3() {
+	sess, err := session.NewSession()
+	if err != nil {
+		fmt.Println("failed to create session,", err)
+		return
+	}
+
+	svc := s3.New(sess)
+
+	params := &s3.PutObjectInput{
+		Bucket: aws.String("BucketName"), // Required
+		Key:    aws.String("ObjectKey"),  // Required
+		Metadata: map[string]*string{
+			"Key": aws.String("MetadataValue"), // Required
+		},
+	}
+	resp, err := svc.PutObject(params)
+
+	if err != nil {
+		// Print the error, cast err to awserr.Error to get the Code and
+		// Message from an error.
+		fmt.Println(err.Error())
+		return
+	}
+
+	// Pretty-print the response data.
+	fmt.Println(resp)
 }
 
 /******************************************************************************/
