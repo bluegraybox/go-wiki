@@ -48,8 +48,8 @@ func TestDefaultHandler(t *testing.T) {
 	response := httptest.NewRecorder()
 	request, _ := http.NewRequest("GET", "http://domain.com/totally/invalid/path", nil)
 	defaultHandler(response, request)
-	if response.Code != http.StatusFound {
-		t.Errorf("Wrong status code: %d", response.Code)
+	if response.Result().StatusCode != http.StatusFound {
+		t.Errorf("Wrong status code: %d", response.Result().StatusCode)
 	}
 }
 
@@ -78,8 +78,8 @@ func TestMissingViewHandler(t *testing.T) {
 	response := httptest.NewRecorder()
 	request, _ := http.NewRequest("GET", "http://domain.com/view/TestMissingWikiPage", nil)
 	viewHandler(pIO)(response, request)
-	if response.Code != http.StatusFound {
-		t.Errorf("Wrong status code: %d", response.Code)
+	if response.Result().StatusCode != http.StatusFound {
+		t.Errorf("Wrong status code: %d", response.Result().StatusCode)
 	}
 }
 
@@ -97,8 +97,8 @@ func TestBadWikiTemplate(t *testing.T) {
 	response := httptest.NewRecorder()
 	page := &Page{Title: "Whatever", Body: []byte("whatever")}
 	renderHtml(page, response, "bad_template.html")
-	if response.Code != http.StatusInternalServerError {
-		t.Errorf("Wrong status code: %d, body:\n%v", response.Code, response.Body.String())
+	if response.Result().StatusCode != http.StatusInternalServerError {
+		t.Errorf("Wrong status code: %d, body:\n%v", response.Result().StatusCode, response.Body.String())
 	}
 }
 
@@ -144,8 +144,8 @@ func TestSaveHandler(t *testing.T) {
 	content := map[string]string{"body": "New page content"}
 	request := newPostRequest("http://domain.com/save/TestNewPage", content)
 	saveHandler(pIO)(response, request)
-	if response.Code != http.StatusFound {
-		t.Errorf("Wrong status code: %d", response.Code)
+	if response.Result().StatusCode != http.StatusFound {
+		t.Errorf("Wrong status code: %d", response.Result().StatusCode)
 	}
 	page, err := pIO.loadPage("TestNewPage")
 	if err != nil {
@@ -164,8 +164,8 @@ func TestSaveHandlerBadTitle(t *testing.T) {
 	content := map[string]string{"body": "filler"}
 	request := newPostRequest("http://domain.com/save/Bad/Page/Name", content)
 	saveHandler(pIO)(response, request)
-	if response.Code != http.StatusInternalServerError {
-		t.Errorf("Wrong status code: %d", response.Code)
+	if response.Result().StatusCode != http.StatusInternalServerError {
+		t.Errorf("Wrong status code: %d", response.Result().StatusCode)
 	}
 }
 
@@ -196,8 +196,8 @@ func TestRenameHandler(t *testing.T) {
 	form_content := map[string]string{"newName": "TestPageRename"}
 	request := newPostRequest("http://domain.com/rename/TestWikiPage", form_content)
 	renameHandler(pIO)(response, request)
-	if response.Code != http.StatusFound {
-		t.Errorf("Wrong status code: %d", response.Code)
+	if response.Result().StatusCode != http.StatusFound {
+		t.Errorf("Wrong status code: %d", response.Result().StatusCode)
 	}
 	page, err := pIO.loadPage("TestPageRename")
 	if err != nil {
@@ -217,8 +217,8 @@ func TestRenameHandlerMissingPage(t *testing.T) {
 	form_content := map[string]string{"newName": "TestPageRename"}
 	request := newPostRequest("http://domain.com/rename/TestWikiPage", form_content)
 	renameHandler(pIO)(response, request)
-	if response.Code != http.StatusFound {
-		t.Errorf("Wrong status code: %d", response.Code)
+	if response.Result().StatusCode != http.StatusFound {
+		t.Errorf("Wrong status code: %d", response.Result().StatusCode)
 	}
 	location := response.Header().Get("Location")
 	if "/edit/TestPageRename" != location {
@@ -261,8 +261,8 @@ func TestSecWrapNoAuth(t *testing.T) {
 	request, _ := http.NewRequest("GET", "http://domain.com/", nil)
 	response := httptest.NewRecorder()
 	secWrap(canary)(response, request)
-	if http.StatusUnauthorized != response.Code {
-		t.Errorf("Wrong response code: expected %d, got %d", http.StatusUnauthorized, response.Code)
+	if http.StatusUnauthorized != response.Result().StatusCode {
+		t.Errorf("Wrong response code: expected %d, got %d", http.StatusUnauthorized, response.Result().StatusCode)
 	}
 }
 
